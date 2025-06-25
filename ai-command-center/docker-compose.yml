@@ -1,0 +1,82 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:13
+    container_name: aicc_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    ports: ["5432:5432"]
+    networks: [ai_network]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s; timeout: 5s; retries: 5
+  redis:
+    image: redis:6.2-alpine
+    container_name: aicc_redis
+    ports: ["6379:6379"]
+    networks: [ai_network]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s; timeout: 5s; retries: 5
+  backend:
+    build: ./backend
+    container_name: aicc_backend
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    volumes: ["./backend:/app"]
+    ports: ["8000:8000"]
+    env_file: .env
+    depends_on: {db: {condition: service_healthy}, redis: {condition: service_healthy}}
+    networks: [ai_network]
+  worker_celery:
+    build: ./backend
+    container_name: aicc_celery_worker
+    command: celery -A tasks.worker.celery_app worker --loglevel=info
+    volumes: ["./backend:/app"]
+    env_file: .env
+    depends_on: [backend, redis]
+    networks: [ai_network]
+  frontend:
+    build: {context: ./frontend, dockerfile: Dockerfile}
+    container_name: aicc_frontend
+    ports: ["3000:80"]
+    depends_on: [backend]
+    networks: [ai_network]
+  worker-gpt:
+    build: ./workers/worker-gpt
+    container_name: aicc_worker_gpt
+    command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+    volumes: ["./workers/worker-gpt:/app"]
+    ports: ["8001:8001"]
+    networks: [ai_network]
+    environment: {MODEL_NAME: Mock-GPT}
+  worker-mistral:
+    build: ./workers/worker-mistral
+    container_name: aicc_worker_mistral
+    command: uvicorn main:app --host 0.0.0.0 --port 8002 --reload
+    volumes: ["./workers/worker-mistral:/app"]
+    ports: ["8002:8002"]
+    networks: [ai_network]
+    environment: {MODEL_NAME: Mock-Mistral}
+  prometheus:
+    image: prom/prometheus:v2.37.0
+    container_name: aicc_prometheus
+    volumes: ["./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml"]
+    ports: ["9090:9090"]
+    command: '--config.file=/etc/prometheus/prometheus.yml'
+    depends_on: [backend, worker-gpt, worker-mistral]
+    networks: [ai_network]
+  grafana:
+    image: grafana/grafana:8.5.2
+    container_name: aicc_grafana
+    volumes: ["./monitoring/grafana/provisioning:/etc/grafana/provisioning"]
+    ports: ["3001:3000"]
+    depends_on: [prometheus]
+    networks: [ai_network]
+networks:
+  ai_network: {driver: bridge}
+volumes:
+  postgres_data:

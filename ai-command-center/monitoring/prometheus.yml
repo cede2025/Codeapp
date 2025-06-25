@@ -1,0 +1,6 @@
+global: {scrape_interval: 15s}
+scrape_configs:
+  - {job_name: p, static_configs: [{targets: ['localhost:9090']}]}
+  - {job_name: b, scrape_interval: 5s, static_configs: [{targets: ['backend:8000']}]}
+  - {job_name: wg, scrape_interval: 5s, static_configs: [{targets: ['worker-gpt:8001']}]}
+  - {job_name: wm, scrape_interval: 5s, static_configs: [{targets: ['worker-mistral:8002']}]}
