@@ -1,0 +1,1 @@
+body{background:#0d1117;color:#c9d1d9;font-family:sans-serif;}.App{text-align:center;}form{margin:20px;}input{padding:8px;margin-right:8px;}button{padding:8px 16px;}.task-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;padding:20px;}.task-item{background:#161b22;border:1px solid #30363d;padding:16px;border-radius:6px;}

@@ -1,0 +1,22 @@
+name: Build & Deploy AI Command Center
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build containers
+        run: |
+          cd ai-command-center
+          docker-compose build
